@@ -113,7 +113,7 @@ BEGIN
       )                                                    AS age_hours
     FROM public.posts p
     WHERE p.campus = p_campus
-      AND p.created_at > now() - make_interval(hours => v_max_age_hours)
+      AND p.created_at > now() - (v_max_age_hours * interval '1 hour')
   ),
   scored AS (
     SELECT
