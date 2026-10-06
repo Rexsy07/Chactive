@@ -150,7 +150,7 @@ BEGIN
     st.created_at,
     st.score,
     (pv.value IS NOT NULL)        AS has_voted,
-    COALESCE(pv.value, 0)         AS vote_value,
+    COALESCE(pv.value, 0::smallint)    AS vote_value,
     (bm.post_id IS NOT NULL)      AS has_bookmarked
   FROM scored st
   -- LATERAL probes are run once per survivor row. Each key is the composite PK
