@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.refresh_post_engagement() FROM PUBLIC, anon, authenticated;

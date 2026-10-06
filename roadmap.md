@@ -1,0 +1,11 @@
+- [x] Review the uploaded Kampus reference and prompt.
+- [x] Establish persistent campus content and account data.
+- [x] Implement the feed, search, profile, news, and anonymous spaces.
+- [x] Verify browsing, search, mobile navigation, and account prompts.
+- [ ] Verify signed-in engagement end-to-end (posting a video succeeded; voting, comments, and follows remain unverified).
+- [x] Confirm Search News and the five-button navigation in a mobile-sized browser.
+- [ ] Verify video autoplay in-view on a real mobile device (the automated browser could not decode the local test video either; actual phone behavior remains unverified).
+- [x] Remove fictional posts, rooms, people, news, and signed-out profile; connect messages and post totals to Cloud.
+- [x] Verify signed-out discovery and signed-in profile and empty messaging state in the live preview.
+- [ ] Verify a two-person message exchange (only one real profile currently exists).
+- [x] Add tappable Following and Followers lists to profiles using real account relationships.

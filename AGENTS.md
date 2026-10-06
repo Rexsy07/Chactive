@@ -1,0 +1,5 @@
+- Keep Kampus sample posts in the Cloud database migration, not browser seed logic, so every first visit sees the same feed.
+- Keep browser-only recent and saved search terms in localStorage, while signed-in engagement lives in Cloud tables, so private interactions persist across devices.
+- Build the five-screen mobile shell at `/` with internal tabs, keeping News within Search and Chat in the bottom navigation, so navigation stays app-like without unused routes.
+- Store private one-to-one messages in Cloud with participant-only access, because local chat state disappears and exposes misleading conversations.
+- Render discovery from real accounts, posts, and published news; show empty states rather than fabricated people, headlines, media, counts, or profiles.

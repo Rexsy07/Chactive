@@ -1,0 +1,9 @@
+# Runtime dependencies for the Kampus recommendation pipeline.
+# Mirror the versions you already ship elsewhere in the stack; these are the
+# minimums required by the code in src/recommendations/.
+numpy>=1.24
+scipy>=1.10
+torch>=2.0
+
+# Optional, only if you run the pipeline through supabase-py for row loading.
+# supabase>=2.0
