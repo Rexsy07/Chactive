@@ -72,6 +72,65 @@ function SignedImage({ path, fallback, alt, className, style }: { path: string |
   }, [path]);
   return <img src={url || fallback || ''} alt={alt} className={className} loading="lazy" style={style}/>;
 }
+function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banner'; file: File; onApply: (out: File) => void; onCancel: () => void }) {
+  const [src, setSrc] = useState('');
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [off, setOff] = useState({ x: 0, y: 0 });
+  const winRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => { const u = URL.createObjectURL(file); setSrc(u); const el = new Image(); el.onload = () => setImg(el); el.src = u; return () => URL.revokeObjectURL(u); }, [file]);
+  useEffect(() => { const el = winRef.current; if (!el) return; const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); }; measure(); const ro = new ResizeObserver(measure); ro.observe(el); return () => ro.disconnect(); }, []);
+  if (!img) return <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">Loading image…</div>;
+  const scale = Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight);
+  const eff = scale * zoom;
+  const dispW = img.naturalWidth * eff;
+  const dispH = img.naturalHeight * eff;
+  const maxX = Math.max(0, dispW - box.w);
+  const maxY = Math.max(0, dispH - box.h);
+  const ox = Math.min(Math.max(off.x, 0), maxX);
+  const oy = Math.min(Math.max(off.y, 0), maxY);
+  if (ox !== off.x || oy !== off.y) setOff({ x: ox, y: oy });
+  const apply = () => {
+    const outW = kind === 'banner' ? 1500 : 512;
+    const outH = kind === 'banner' ? 500 : 512;
+    const c = document.createElement('canvas'); c.width = outW; c.height = outH;
+    const ctx = c.getContext('2d'); if (!ctx || !box.w) return;
+    const srcX = ox / eff; const srcY = oy / eff; const srcW = box.w / eff; const srcH = box.h / eff;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+    c.toBlob(b => { if (b) onApply(new File([b], file.name || (kind + '.png'), { type: 'image/png' })); }, 'image/png');
+  };
+  return <div className="kampus-overlay" style={{ zIndex: 70 }}>
+    <div className="kampus-sheet">
+      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
+      <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center">
+        <h2 className="text-xl font-extrabold">{kind === 'banner' ? 'Adjust banner' : 'Adjust photo'}</h2>
+        <Button variant="ghost" size="icon" title="Close" aria-label="Close" onClick={onCancel}><X size={20} /></Button>
+      </div>
+      <p className="mb-3 text-sm text-muted-foreground">Drag the image to choose which part to show, and use the slider to zoom.</p>
+      <div ref={winRef} className={kind === 'banner' ? 'w-full overflow-hidden rounded-xl border border-border bg-secondary' : 'mx-auto w-56 overflow-hidden rounded-full border border-border bg-secondary'} style={{ aspectRatio: kind === 'banner' ? '3 / 1' : '1 / 1' }}
+        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox, oy }; }}
+        onPointerMove={e => { if (!drag.current) return; setOff({ x: drag.current.ox + e.clientX - drag.current.x, y: drag.current.oy + e.clientY - drag.current.y }); }}
+        onPointerUp={() => { drag.current = null; }}
+        onPointerCancel={() => { drag.current = null; }}>
+        <div className="relative h-full w-full">
+          <img src={src} alt="Crop preview" draggable={false}
+            style={{ position: 'absolute', left: -ox, top: -oy, width: dispW, height: dispH, maxWidth: 'none', userSelect: 'none', touchAction: 'none' }} />
+          <div className="pointer-events-none absolute inset-0 text-white/40" style={{ backgroundImage: 'linear-gradient(to right,currentColor 1px,transparent 1px),linear-gradient(to bottom,currentColor 1px,transparent 1px)', backgroundSize: '33.333% 33.333%' }} />
+        </div>
+      </div>
+      <label className="mt-4 flex items-center gap-3 text-sm">
+        <span className="shrink-0 text-muted-foreground">Zoom</span>
+        <input type="range" min={1} max={3} step={0.05} value={zoom} className="w-full"
+          onChange={e => { setZoom(Number(e.target.value)); setOff({ x: dispW * 0.5 - box.w * 0.5, y: dispH * 0.5 - box.h * 0.5 }); }} />
+      </label>
+      <Button className="mt-4 w-full" onClick={apply}>Apply crop</Button>
+      <Button variant="ghost" className="mt-2 w-full text-primary" onClick={onCancel}>Cancel</Button>
+    </div>
+  </div>;
+}
 function Media({ post, votePoll }: { post: Post; votePoll: (choice: string) => void }) {
   if (post.kind === 'photo' && post.media_url) return <UploadedPhoto path={post.media_url} />;
   if (post.kind === 'upload-video' && post.media_url) return <UploadedPhoto path={post.media_url} video />;
@@ -89,9 +148,10 @@ function Kampus() {
   const [query,setQuery] = useState(''); const [submitted,setSubmitted] = useState(false); const [exploreTab,setExploreTab] = useState('Explore'); const [resultTab,setResultTab] = useState('Top'); const [filters,setFilters] = useState<Filters>({school:false,verified:false,recent:false});
   const [recent,setRecent] = useState<string[]>([]); const [savedSearches,setSavedSearches] = useState<string[]>([]); const [votes,setVotes] = useState<Record<number,number>>({}); const [bookmarks,setBookmarks] = useState<number[]>([]); const [follows,setFollows] = useState<string[]>([]); const [pollChoices,setPollChoices] = useState<Record<number,string>>({}); const [selectedPost,setSelectedPost] = useState<Post | null>(null); const [comments,setComments] = useState<{id:number;handle:string;body:string}[]>([]); const [commentText,setCommentText] = useState(''); const [roomMessages,setRoomMessages] = useState<{room:string;body:string}[]>([]); const [myReplies,setMyReplies] = useState<{post_id:number;body:string}[]>([]);
   const [draft,setDraft] = useState({title:'',body:'',campus:'UNILAG',flair:'Campus'}); const [edit,setEdit] = useState({display_name:'',handle:'',campus:'UNILAG',bio:''}); const [busy,setBusy] = useState(false); const [photo,setPhoto] = useState<File|null>(null); const [photoPreview,setPhotoPreview] = useState('');
-  const [avatarFile,setAvatarFile] = useState<File|null>(null); const [avatarPreview,setAvatarPreview] = useState(''); const [bannerFile,setBannerFile] = useState<File|null>(null); const [bannerPreview,setBannerPreview] = useState('');
-  const pickAvatar=(f:File|null)=>{if(f&&f.size>10*1024*1024){setNotice('Avatar must be under 10 MB');return;}setAvatarFile(f);setAvatarPreview(f?URL.createObjectURL(f):'');};
-  const pickBanner=(f:File|null)=>{if(f&&f.size>2*1024*1024){setNotice('Banner must be under 2 MB');return;}setBannerFile(f);setBannerPreview(f?URL.createObjectURL(f):'');};
+  const [avatarFile,setAvatarFile] = useState<File|null>(null); const [avatarPreview,setAvatarPreview] = useState(''); const [bannerFile,setBannerFile] = useState<File|null>(null); const [bannerPreview,setBannerPreview] = useState(''); const [crop,setCrop] = useState<{kind:'avatar'|'banner';file:File}|null>(null);
+  const pickAvatar=(f:File|null)=>{if(f&&f.size>10*1024*1024){setNotice('Avatar must be under 10 MB');return;}if(f)setCrop({kind:'avatar',file:f});else {setAvatarFile(null);setAvatarPreview('');}};
+  const pickBanner=(f:File|null)=>{if(f&&f.size>2*1024*1024){setNotice('Banner must be under 2 MB');return;}if(f)setCrop({kind:'banner',file:f});else {setBannerFile(null);setBannerPreview('');}};
+  const applyCrop=(kind:'avatar'|'banner',out:File)=>{if(kind==='avatar'){setAvatarFile(out);setAvatarPreview(URL.createObjectURL(out));}else{setBannerFile(out);setBannerPreview(URL.createObjectURL(out));}setCrop(null);};
   const uploadMedia=async(file:File,uid:string,kind:'post'|'avatar'|'banner'):Promise<string|null>=>{const cleanExt=file.name.split('.').pop()||'png';const path=kind==='post'?`${uid}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g,'_')}`:kind==='avatar'?`${uid}/media/avatar.${cleanExt}`:`${uid}/media/banner.${cleanExt}`;const up=await supabase.storage.from('post-media').upload(path,file,{contentType:file.type,cacheControl:'public, max-age=31536000, immutable',upsert:true});if(up.error){setNotice(up.error.message);return null;}return path;};
   const saveAvatarBanner=async()=>{if(!user||!profile)return;setBusy(true);let avatarUrl=profile.avatar_url;let bannerUrl=profile.banner_url;if(avatarFile){const p=await uploadMedia(avatarFile,user.id,'avatar');if(p)avatarUrl=p;}if(bannerFile){const p=await uploadMedia(bannerFile,user.id,'banner');if(p)bannerUrl=p;}if(avatarFile||bannerFile){const next={...profile,avatar_url:avatarUrl,banner_url:bannerUrl};const {error}=await supabase.from('profiles').update({avatar_url:avatarUrl,banner_url:bannerUrl}).eq('id',user.id);if(error){setNotice(error.message);}else{setProfile(next);}}pickAvatar(null);pickBanner(null);setBusy(false);};
   const [people,setPeople] = useState<Profile[]>([]); const [news,setNews] = useState<{id:number;title:string;source:string;campus:string;summary:string;image_url:string|null;published_at:string}[]>([]); const [messages,setMessages] = useState<{id:number;sender_id:string;recipient_id:string;body:string;created_at:string}[]>([]); const [rooms,setRooms] = useState<{name:string;campus:string;messages:string[]}[]>([]); const [room,setRoom] = useState<number|null>(null); const [roomText,setRoomText] = useState(''); const [roomName,setRoomName] = useState(''); const [chatWith,setChatWith] = useState<string|null>(null); const [chatText,setChatText] = useState(''); const [campusPick,setCampusPick] = useState<'draft'|'edit'|'signup'|null>(null); const [signupCampus,setSignupCampus] = useState('UNILAG'); const [campusQuery,setCampusQuery] = useState('');
@@ -162,5 +222,6 @@ function Kampus() {
   {overlay==='share'&&sheet('Share post',<div className="space-y-3"><p className="text-sm text-muted-foreground">{selectedPost?.title}</p><Button className="w-full" onClick={()=>void share()}><LinkIcon size={17}/> Copy link</Button></div>)}
   {overlay==='settings'&&sheet('Settings',<div className="space-y-1">{user&&<><div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-secondary p-3"><Avatar name={profile?.display_name??user.email??'Student'} size={44} photoLabel="Your avatar"/><div className="min-w-0"><b className="block truncate">{profile?.display_name??'Student'}</b><p className="truncate text-xs text-muted-foreground">@{profile?.handle??''} · {profile?.campus??''}</p></div></div><Button variant="ghost" className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-border px-4 py-3 text-left" onClick={()=>setOverlay('edit')}><UserRound size={18}/><span>Edit profile</span></Button><Button variant="ghost" className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-border px-4 py-3 text-left" onClick={()=>{setAuthMode('reset');setAuthError('');setOverlay('auth');}}><Settings2 size={18}/><span>Change password</span></Button><Button variant="ghost" className="flex h-auto w-full items-center justify-start gap-3 rounded-none border-b border-border px-4 py-3 text-left text-destructive" onClick={()=>{void supabase.auth.signOut();setOverlay(null);setNotice('Signed out');}}><X size={18}/><span>Log out</span></Button></>}</div>)}
   {campusPick&&campusPickerView()}
+  {crop&&<CropEditor kind={crop.kind} file={crop.file} onApply={out=>applyCrop(crop.kind,out)} onCancel={()=>{setCrop(null);}}/>}
   </div>;
 }
