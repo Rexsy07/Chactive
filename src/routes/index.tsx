@@ -80,7 +80,21 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
   const winRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
-  useEffect(() => { const u = URL.createObjectURL(file); setSrc(u); const el = new Image(); el.onload = () => setImg(el); el.src = u; return () => URL.revokeObjectURL(u); }, [file]);
+  const loadId = useRef(0);
+  useEffect(() => {
+    const id = ++loadId.current;
+    const el = new Image();
+    el.onload = () => { if (id === loadId.current) setImg(el); };
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (id !== loadId.current) return;
+      const dataUrl = String(reader.result || '');
+      setSrc(dataUrl);
+      el.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    return () => { loadId.current++; };
+  }, [file]);
   useEffect(() => { const el = winRef.current; if (!el) return; const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); }; measure(); const ro = new ResizeObserver(measure); ro.observe(el); return () => ro.disconnect(); }, []);
   if (!img) return <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">Loading image…</div>;
   const scale = Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight);
