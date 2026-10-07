@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ImagePlus, Clapperboard, History, ArrowDown, ArrowLeft, ArrowUp, Bookmark, Check, ChevronDown, Compass, Download, FileText, Ghost, Home, Link as LinkIcon, MessageCircle, Pause, Play, Plus, Search, Send, Settings2, Share2, SlidersHorizontal, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,12 +95,11 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
     reader.readAsDataURL(file);
     return () => { loadId.current++; };
   }, [file]);
-  useEffect(() => { const el = winRef.current; if (!el) return; const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); }; measure(); const ro = new ResizeObserver(measure); ro.observe(el); return () => ro.disconnect(); }, []);
-  if (!img) return <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">Loading image…</div>;
-  const scale = Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight);
+  useLayoutEffect(() => { const el = winRef.current; if (!el) return; const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); }; measure(); const ro = new ResizeObserver(measure); ro.observe(el); return () => ro.disconnect(); }, []);
+  const scale = img && box.w ? Math.max(box.w / img.naturalWidth, box.h / img.naturalHeight) : 1;
   const eff = scale * zoom;
-  const dispW = img.naturalWidth * eff;
-  const dispH = img.naturalHeight * eff;
+  const dispW = (img?.naturalWidth ?? 1) * eff;
+  const dispH = (img?.naturalHeight ?? 1) * eff;
   const maxX = Math.max(0, dispW - box.w);
   const maxY = Math.max(0, dispH - box.h);
   const ox = Math.min(Math.max(off.x, 0), maxX);
@@ -110,7 +109,7 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
     const outW = kind === 'banner' ? 1500 : 512;
     const outH = kind === 'banner' ? 500 : 512;
     const c = document.createElement('canvas'); c.width = outW; c.height = outH;
-    const ctx = c.getContext('2d'); if (!ctx || !box.w) return;
+    const ctx = c.getContext('2d'); if (!ctx || !box.w || !img) return;
     const srcX = ox / eff; const srcY = oy / eff; const srcW = box.w / eff; const srcH = box.h / eff;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
@@ -125,15 +124,15 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
       </div>
       <p className="mb-3 text-sm text-muted-foreground">Drag the image to choose which part to show, and use the slider to zoom.</p>
       <div ref={winRef} className={kind === 'banner' ? 'w-full overflow-hidden rounded-xl border border-border bg-secondary' : 'mx-auto w-56 overflow-hidden rounded-full border border-border bg-secondary'} style={{ aspectRatio: kind === 'banner' ? '3 / 1' : '1 / 1' }}
-        onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox, oy }; }}
+        onPointerDown={e => { if (!img) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox, oy }; }}
         onPointerMove={e => { if (!drag.current) return; setOff({ x: drag.current.ox + e.clientX - drag.current.x, y: drag.current.oy + e.clientY - drag.current.y }); }}
         onPointerUp={() => { drag.current = null; }}
         onPointerCancel={() => { drag.current = null; }}>
-        <div className="relative h-full w-full">
+        {!img ? <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Loading image…</div> : <div className="relative h-full w-full">
           <img src={src} alt="Crop preview" draggable={false}
             style={{ position: 'absolute', left: -ox, top: -oy, width: dispW, height: dispH, maxWidth: 'none', userSelect: 'none', touchAction: 'none' }} />
           <div className="pointer-events-none absolute inset-0 text-white/40" style={{ backgroundImage: 'linear-gradient(to right,currentColor 1px,transparent 1px),linear-gradient(to bottom,currentColor 1px,transparent 1px)', backgroundSize: '33.333% 33.333%' }} />
-        </div>
+        </div>}
       </div>
       <label className="mt-4 flex items-center gap-3 text-sm">
         <span className="shrink-0 text-muted-foreground">Zoom</span>
