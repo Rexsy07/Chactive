@@ -123,14 +123,14 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
         <Button variant="ghost" size="icon" title="Close" aria-label="Close" onClick={onCancel}><X size={20} /></Button>
       </div>
       <p className="mb-3 text-sm text-muted-foreground">Drag the image to choose which part to show, and use the slider to zoom.</p>
-      <div ref={winRef} className={kind === 'banner' ? 'w-full overflow-hidden rounded-xl border border-border bg-secondary' : 'mx-auto w-56 overflow-hidden rounded-full border border-border bg-secondary'} style={{ aspectRatio: kind === 'banner' ? '3 / 1' : '1 / 1' }}
+      <div ref={winRef} className={ (kind === 'banner' ? 'relative w-full ' : 'relative mx-auto w-56 ') + 'overflow-hidden rounded-xl border border-border bg-secondary'} style={{ aspectRatio: kind === 'banner' ? '3 / 1' : '1 / 1' }}
         onPointerDown={e => { if (!img) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox, oy }; }}
         onPointerMove={e => { if (!drag.current) return; setOff({ x: drag.current.ox + e.clientX - drag.current.x, y: drag.current.oy + e.clientY - drag.current.y }); }}
         onPointerUp={() => { drag.current = null; }}
         onPointerCancel={() => { drag.current = null; }}>
-        {!img ? <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Loading image…</div> : <div className="relative h-full w-full">
+        {!img ? <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Loading image…</div> : <div className="relative h-full w-full overflow-hidden">
           <img src={src} alt="Crop preview" draggable={false}
-            style={{ position: 'absolute', left: -ox, top: -oy, width: dispW, height: dispH, maxWidth: 'none', userSelect: 'none', touchAction: 'none' }} />
+            style={{ position: 'absolute', left: -ox, top: -oy, width: dispW, height: dispH, maxWidth: 'none', maxHeight: 'none', userSelect: 'none', touchAction: 'none' }} />
           <div className="pointer-events-none absolute inset-0 text-white/40" style={{ backgroundImage: 'linear-gradient(to right,currentColor 1px,transparent 1px),linear-gradient(to bottom,currentColor 1px,transparent 1px)', backgroundSize: '33.333% 33.333%' }} />
         </div>}
       </div>
