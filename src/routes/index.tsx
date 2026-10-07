@@ -115,7 +115,8 @@ function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banne
     ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
     c.toBlob(b => { if (b) onApply(new File([b], file.name || (kind + '.png'), { type: 'image/png' })); }, 'image/png');
   };
-  return <div className="kampus-overlay" style={{ zIndex: 70 }}>
+  return <div className="kampus-sheet-backdrop" style={{ zIndex: 70 }}>
+    <button type="button" className="min-h-9 flex-1" aria-label="Close" onClick={onCancel} />
     <div className="kampus-sheet">
       <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
       <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center">
