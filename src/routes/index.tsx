@@ -75,7 +75,7 @@ function SignedImage({ path, fallback, alt, className, style }: { path: string |
 function CropEditor({ kind, file, onApply, onCancel }: { kind: 'avatar' | 'banner'; file: File; onApply: (out: File) => void; onCancel: () => void }) {
   const [src, setSrc] = useState('');
   const [img, setImg] = useState<HTMLImageElement | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1.25);
   const [off, setOff] = useState({ x: 0, y: 0 });
   const winRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
