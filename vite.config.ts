@@ -12,7 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
     nitro: {
-      preset: (process.env.NITRO_PRESET as any) || "cloudflare-module",
+      preset: (process.env["NITRO_PRESET"] as any) || "cloudflare-module",
     },
   },
 });
